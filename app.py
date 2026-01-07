@@ -73,21 +73,27 @@ def get_waze_route(start, end):
 
 def get_weather():
     try:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&current=temperature_2m,weather_code"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&current=temperature_2m,apparent_temperature,weather_code"
         response = requests.get(url)
         data = response.json()
         temp = data['current']['temperature_2m']
+        feels_like = data['current']['apparent_temperature']
         code = data['current']['weather_code']
         
+        # WMO Weather code mapping with Emojis
         mapping = {
-            0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
-            45: "Foggy", 48: "Foggy", 51: "Drizzle", 53: "Drizzle", 55: "Drizzle",
-            61: "Rain", 63: "Rain", 65: "Rain", 71: "Snow", 73: "Snow", 75: "Snow",
-            95: "Thunderstorm"
+            0: ("Clear Sky", "☀️"), 1: ("Mainly Clear", "🌤️"), 2: ("Partly Cloudy", "⛅"), 3: ("Overcast", "☁️"),
+            45: ("Foggy", "🌫️"), 48: ("Foggy", "🌫️"), 
+            51: ("Drizzle", "🌦️"), 53: ("Drizzle", "🌦️"), 55: ("Drizzle", "🌦️"),
+            61: ("Rain", "🌧️"), 63: ("Rain", "🌧️"), 65: ("Rain", "🌧️"), 
+            71: ("Snow", "❄️"), 73: ("Snow", "❄️"), 75: ("Snow", "❄️"),
+            95: ("Thunderstorm", "⛈️"), 96: ("Thunderstorm", "⛈️"), 99: ("Thunderstorm", "⛈️")
         }
-        return round(temp), mapping.get(code, "Cloudy")
+        
+        desc, emoji = mapping.get(code, ("Cloudy", "☁️"))
+        return round(temp), round(feels_like), desc, emoji
     except:
-        return 0, "--"
+        return 0, 0, "--", ""
 
 def get_traffic_alerts():
     try:
@@ -95,15 +101,28 @@ def get_traffic_alerts():
         response.encoding = 'iso-8859-1'
         root = ET.fromstring(response.text)
         alerts = []
-        for item in root.findall('.//item')[:5]:
+        for item in root.findall('.//item')[:10]: # Check more to ensure we get 5 good ones
             title = item.find('title').text
-            if title:
-                clean_title = title.split('-', 1)[-1].strip() if '-' in title else title
-                alerts.append(clean_title)
-        return alerts
+            if title and " - " in title:
+                # Remove the timestamp prefix (e.g., "07-01-2026 | 12:32:27 - ")
+                content = title.split(' - ', 1)[1].strip()
+                
+                # Clean up prefixes
+                content = content.replace("FILE:", "Vertraging:").replace("ACTUA:", "").replace("VERKEER:", "").strip()
+                
+                # Filter out empty, too short, or meaningless tags
+                if not content or len(content) < 3:
+                    continue
+                
+                if content not in alerts:
+                    alerts.append(content)
+            
+            if len(alerts) >= 5: break
+            
+        return alerts if alerts else ["Geen incidenten momenteel."]
     except Exception as e:
         print(f"Error fetching traffic alerts: {e}")
-        return ["Could not fetch alerts"]
+        return ["Kon verkeersinformatie niet ophalen."]
 
 def calculate_trend(current, old, is_first_run):
     if is_first_run or current == 0 or old == 0:
@@ -133,8 +152,8 @@ def update_data():
         current_status["to_home"] = {"time_mins": t2, "distance_km": d2, "trend": trend2, "color": color2}
         
         # 3. Weather
-        temp, cond = get_weather()
-        current_status["weather"] = {"temp": temp, "description": cond}
+        temp, feels, cond, emoji = get_weather()
+        current_status["weather"] = {"temp": temp, "feels_like": feels, "description": cond, "emoji": emoji}
         
         # 4. Alerts
         current_status["traffic_alerts"] = get_traffic_alerts()
@@ -306,9 +325,12 @@ HTML_TEMPLATE = """
             <div class="card">
                 <h1>Weer</h1>
                 <div class="big-value temp">
-                    {{ data.weather.temp }}<span>°C</span>
+                    {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
                 </div>
-                <div class="details">{{ data.weather.description }}</div>
+                <div class="details">
+                    {{ data.weather.description }}<br>
+                    <span style="font-size: 1rem; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
+                </div>
             </div>
         </div>
 
