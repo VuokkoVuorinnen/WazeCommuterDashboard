@@ -1,0 +1,12 @@
+services:
+  waze-dashboard:
+    build: .
+    container_name: waze-dashboard
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount the config file so it can be edited on the host without rebuilding
+      - ./config.json:/app/config.json
+    environment:
+      - TZ=Europe/Brussels # Set timezone for correct clock/logging

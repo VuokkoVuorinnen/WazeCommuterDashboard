@@ -17,7 +17,8 @@ DEFAULT_CONFIG = {
     "weather_lat": 51.2194,
     "weather_long": 4.4025,
     "region": "EU",
-    "update_interval": 300
+    "update_interval": 300,
+    "standard_commute_mins": 45
 }
 
 def load_config():
@@ -42,8 +43,8 @@ UPDATE_INTERVAL = CONFIG["update_interval"]
 # ---------------------
 
 current_status = {
-    "to_work": {"time_mins": 0, "distance_km": 0, "trend": "flat"},
-    "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat"},
+    "to_work": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
+    "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
     "weather": {"temp": 0, "description": "--"},
     "traffic_alerts": [],
     "last_updated": "Initializing..."
@@ -51,6 +52,15 @@ current_status = {
 
 logger = logging.getLogger('WazeRouteCalculator.WazeRouteCalculator')
 logger.setLevel(logging.WARNING)
+
+def calculate_traffic_color(current_time, standard_time):
+    if standard_time == 0: return ""
+    ratio = current_time / standard_time
+    if ratio > 1.33: # > 33% longer (Red)
+        return "heavy-traffic"
+    elif ratio > 1.1: # > 10% longer (Orange)
+        return "moderate-traffic"
+    return ""
 
 def get_waze_route(start, end):
     try:
@@ -108,16 +118,19 @@ def update_data():
     while True:
         print(f"[{time.strftime('%H:%M:%S')}] Updating dashboard data...")
         is_first_run = current_status["last_updated"] == "Initializing..."
+        std_time = CONFIG.get("standard_commute_mins", 45)
         
         # 1. Home -> Work
         t1, d1 = get_waze_route(HOME_ADDRESS, WORK_ADDRESS)
         trend1 = calculate_trend(t1, current_status["to_work"]["time_mins"], is_first_run)
-        current_status["to_work"] = {"time_mins": t1, "distance_km": d1, "trend": trend1}
+        color1 = calculate_traffic_color(t1, std_time)
+        current_status["to_work"] = {"time_mins": t1, "distance_km": d1, "trend": trend1, "color": color1}
         
         # 2. Work -> Home
         t2, d2 = get_waze_route(WORK_ADDRESS, HOME_ADDRESS)
         trend2 = calculate_trend(t2, current_status["to_home"]["time_mins"], is_first_run)
-        current_status["to_home"] = {"time_mins": t2, "distance_km": d2, "trend": trend2}
+        color2 = calculate_traffic_color(t2, std_time)
+        current_status["to_home"] = {"time_mins": t2, "distance_km": d2, "trend": trend2, "color": color2}
         
         # 3. Weather
         temp, cond = get_weather()
@@ -142,7 +155,10 @@ HTML_TEMPLATE = """
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: #121212; 
+            /* Fallback color */
+            background-color: #121212;
+            /* Modern Dark Gradient (Deep Night Blue -> Black) */
+            background: radial-gradient(circle at center, #1e2a3a 0%, #0d1117 100%);
             color: #ffffff; 
             height: 100vh; 
             margin: 0; 
@@ -154,9 +170,10 @@ HTML_TEMPLATE = """
         .header {
             text-align: center;
             margin-bottom: 30px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         #clock { font-size: 5rem; font-weight: 700; margin: 0; color: #fff; }
-        #date { font-size: 1.5rem; color: #888; margin-top: -10px; }
+        #date { font-size: 1.5rem; color: #ddd; margin-top: -10px; }
 
         .container {
             display: flex;
@@ -173,7 +190,12 @@ HTML_TEMPLATE = """
             flex-wrap: wrap;
         }
         .card {
-            background-color: #1e1e1e;
+            /* Glassmorphism effect */
+            background-color: rgba(30, 30, 30, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            
             padding: 30px;
             border-radius: 24px;
             text-align: center;
@@ -197,25 +219,26 @@ HTML_TEMPLATE = """
             position: relative;
         }
 
-        h1 { font-size: 1rem; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        h1 { font-size: 1rem; color: #bbb; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
         
-        .big-value { font-size: 5rem; font-weight: 700; line-height: 1; color: #4cd964; }
-        .big-value span { font-size: 1.8rem; font-weight: 400; color: #888; }
+        .big-value { font-size: 5rem; font-weight: 700; line-height: 1; color: #4cd964; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .big-value span { font-size: 1.8rem; font-weight: 400; color: #aaa; }
         .big-value.temp { color: #5ac8fa; }
         
-        .details { margin-top: 15px; font-size: 1.4rem; color: #ddd; }
+        .details { margin-top: 15px; font-size: 1.4rem; color: #eee; }
         
         /* Trend Arrows */
         .trend { font-size: 2.5rem; margin-left: 15px; vertical-align: middle; }
-        .trend.up { color: #ff3b30; }   /* Red = Time increasing (Bad) */
-        .trend.down { color: #4cd964; } /* Green = Time decreasing (Good) */
+        .trend.up { color: #ff453a; text-shadow: 0 0 10px rgba(255, 59, 48, 0.4); } 
+        .trend.down { color: #32d74b; text-shadow: 0 0 10px rgba(50, 215, 75, 0.4); } 
         
         .ticker-wrap {
             width: 100%;
             overflow: hidden;
             white-space: nowrap;
-            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            /* Adjusted mask for transparent background compatibility */
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
         .ticker {
             display: inline-block;
@@ -235,6 +258,7 @@ HTML_TEMPLATE = """
         .footer { margin-top: 40px; font-size: 0.9rem; color: #444; }
         
         .heavy-traffic { color: #ff3b30 !important; }
+        .moderate-traffic { color: #ffcc00 !important; }
     </style>
     <script>
         function updateClock() {
@@ -259,7 +283,7 @@ HTML_TEMPLATE = """
             <!-- Tile 1: Home -> Work -->
             <div class="card">
                 <h1>Home ➝ Work</h1>
-                <div class="big-value {% if data.to_work.time_mins > 45 %}heavy-traffic{% endif %}">
+                <div class="big-value {{ data.to_work.color }}">
                     {{ data.to_work.time_mins }}<span>min</span>
                     {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
                     {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
@@ -270,7 +294,7 @@ HTML_TEMPLATE = """
             <!-- Tile 2: Work -> Home -->
             <div class="card">
                 <h1>Work ➝ Home</h1>
-                <div class="big-value {% if data.to_home.time_mins > 45 %}heavy-traffic{% endif %}">
+                <div class="big-value {{ data.to_home.color }}">
                     {{ data.to_home.time_mins }}<span>min</span>
                     {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
                     {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}

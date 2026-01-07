@@ -36,9 +36,13 @@ Edit `config.json`:
     "home_address": "Your Home Address, City, Country",
     "work_address": "Your Work Address, City, Country",
     "weather_lat": 50.8503,
-    "weather_long": 4.3517
+    "weather_long": 4.3517,
+    "standard_commute_mins": 45
 }
 ```
+*   `standard_commute_mins`: Your typical commute time in minutes. Used to calculate traffic severity colors (Orange > 10% delay, Red > 33% delay).
+*   `weather_lat` / `weather_long`: Coordinates for your local weather (find them on Google Maps).
+
 *Note: `config.json` is git-ignored to keep your personal data private.*
 
 ### 4. Run the Application
