@@ -42,8 +42,8 @@ UPDATE_INTERVAL = CONFIG["update_interval"]
 # ---------------------
 
 current_status = {
-    "to_work": {"time_mins": 0, "distance_km": 0},
-    "to_home": {"time_mins": 0, "distance_km": 0},
+    "to_work": {"time_mins": 0, "distance_km": 0, "trend": "flat"},
+    "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat"},
     "weather": {"temp": 0, "description": "--"},
     "traffic_alerts": [],
     "last_updated": "Initializing..."
@@ -81,16 +81,13 @@ def get_weather():
 
 def get_traffic_alerts():
     try:
-        # Federal Police Traffic Info RSS
         response = requests.get("http://www.wegeninfo.be/rssnl.php", timeout=10)
-        # Handle encoding
         response.encoding = 'iso-8859-1'
         root = ET.fromstring(response.text)
         alerts = []
-        for item in root.findall('.//item')[:5]: # Get top 5
+        for item in root.findall('.//item')[:5]:
             title = item.find('title').text
             if title:
-                # Clean up title (remove date/time prefix for cleaner look)
                 clean_title = title.split('-', 1)[-1].strip() if '-' in title else title
                 alerts.append(clean_title)
         return alerts
@@ -98,18 +95,35 @@ def get_traffic_alerts():
         print(f"Error fetching traffic alerts: {e}")
         return ["Could not fetch alerts"]
 
+def calculate_trend(current, old, is_first_run):
+    if is_first_run or current == 0 or old == 0:
+        return "flat"
+    if current > old:
+        return "up"
+    elif current < old:
+        return "down"
+    return "flat"
+
 def update_data():
     while True:
         print(f"[{time.strftime('%H:%M:%S')}] Updating dashboard data...")
+        is_first_run = current_status["last_updated"] == "Initializing..."
+        
+        # 1. Home -> Work
         t1, d1 = get_waze_route(HOME_ADDRESS, WORK_ADDRESS)
-        current_status["to_work"] = {"time_mins": t1, "distance_km": d1}
+        trend1 = calculate_trend(t1, current_status["to_work"]["time_mins"], is_first_run)
+        current_status["to_work"] = {"time_mins": t1, "distance_km": d1, "trend": trend1}
         
+        # 2. Work -> Home
         t2, d2 = get_waze_route(WORK_ADDRESS, HOME_ADDRESS)
-        current_status["to_home"] = {"time_mins": t2, "distance_km": d2}
+        trend2 = calculate_trend(t2, current_status["to_home"]["time_mins"], is_first_run)
+        current_status["to_home"] = {"time_mins": t2, "distance_km": d2, "trend": trend2}
         
+        # 3. Weather
         temp, cond = get_weather()
         current_status["weather"] = {"temp": temp, "description": cond}
         
+        # 4. Alerts
         current_status["traffic_alerts"] = get_traffic_alerts()
         
         current_status["last_updated"] = time.strftime('%H:%M:%S')
@@ -145,10 +159,18 @@ HTML_TEMPLATE = """
         #date { font-size: 1.5rem; color: #888; margin-top: -10px; }
 
         .container {
-            display: grid;
-            grid-template-columns: repeat(2, 400px);
-            grid-template-rows: repeat(2, 300px);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .row-top {
+            display: flex;
             gap: 25px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         .card {
             background-color: #1e1e1e;
@@ -159,19 +181,57 @@ HTML_TEMPLATE = """
             display: flex;
             flex-direction: column;
             justify-content: center;
+            width: 320px;
+            height: 280px;
         }
+        .card.wide {
+            width: 100%;
+            max-width: 1010px;
+            height: auto;
+            min-height: 120px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px 40px;
+            overflow: hidden;
+            position: relative;
+        }
+
         h1 { font-size: 1rem; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
         
-        .big-value { font-size: 5.5rem; font-weight: 700; line-height: 1; color: #4cd964; }
+        .big-value { font-size: 5rem; font-weight: 700; line-height: 1; color: #4cd964; }
         .big-value span { font-size: 1.8rem; font-weight: 400; color: #888; }
         .big-value.temp { color: #5ac8fa; }
         
         .details { margin-top: 15px; font-size: 1.4rem; color: #ddd; }
         
-        /* Alerts Styling */
-        .alerts-list { text-align: left; font-size: 0.95rem; color: #ffcc00; list-style: none; padding: 0; margin-top: 10px; }
-        .alerts-list li { margin-bottom: 8px; border-left: 3px solid #ffcc00; padding-left: 10px; }
-
+        /* Trend Arrows */
+        .trend { font-size: 2.5rem; margin-left: 15px; vertical-align: middle; }
+        .trend.up { color: #ff3b30; }   /* Red = Time increasing (Bad) */
+        .trend.down { color: #4cd964; } /* Green = Time decreasing (Good) */
+        
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        .ticker {
+            display: inline-block;
+            animation: ticker 60s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 2rem;
+            font-size: 1.5rem;
+            color: #ffcc00;
+        }
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
         .footer { margin-top: 40px; font-size: 0.9rem; color: #444; }
         
         .heavy-traffic { color: #ff3b30 !important; }
@@ -195,41 +255,53 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="container">
-        <!-- Tile 1: Home -> Work -->
-        <div class="card">
-            <h1>Home ➝ Work</h1>
-            <div class="big-value {% if data.to_work.time_mins > 45 %}heavy-traffic{% endif %}">
-                {{ data.to_work.time_mins }}<span>min</span>
+        <div class="row-top">
+            <!-- Tile 1: Home -> Work -->
+            <div class="card">
+                <h1>Home ➝ Work</h1>
+                <div class="big-value {% if data.to_work.time_mins > 45 %}heavy-traffic{% endif %}">
+                    {{ data.to_work.time_mins }}<span>min</span>
+                    {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                    {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+                </div>
+                <div class="details">{{ data.to_work.distance_km }} km</div>
             </div>
-            <div class="details">{{ data.to_work.distance_km }} km</div>
+
+            <!-- Tile 2: Work -> Home -->
+            <div class="card">
+                <h1>Work ➝ Home</h1>
+                <div class="big-value {% if data.to_home.time_mins > 45 %}heavy-traffic{% endif %}">
+                    {{ data.to_home.time_mins }}<span>min</span>
+                    {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                    {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+                </div>
+                <div class="details">{{ data.to_home.distance_km }} km</div>
+            </div>
+
+            <!-- Tile 3: Weather -->
+            <div class="card">
+                <h1>Weer</h1>
+                <div class="big-value temp">
+                    {{ data.weather.temp }}<span>°C</span>
+                </div>
+                <div class="details">{{ data.weather.description }}</div>
+            </div>
         </div>
 
-        <!-- Tile 2: Work -> Home -->
-        <div class="card">
-            <h1>Work ➝ Home</h1>
-            <div class="big-value {% if data.to_home.time_mins > 45 %}heavy-traffic{% endif %}">
-                {{ data.to_home.time_mins }}<span>min</span>
+        <!-- Tile 4: Traffic Alerts (Ticker) -->
+        <div class="card wide">
+            <h1 style="margin: 0; margin-right: 20px; white-space: nowrap; border-right: 2px solid #333; padding-right: 20px;">Verkeer</h1>
+            <div class="ticker-wrap">
+                <div class="ticker">
+                    {% if data.traffic_alerts %}
+                        {% for alert in data.traffic_alerts %}
+                        <div class="ticker-item">⚠️ {{ alert }}</div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="ticker-item" style="color: #4cd964;">Geen incidenten gemeld.</div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="details">{{ data.to_home.distance_km }} km</div>
-        </div>
-
-        <!-- Tile 3: Weather -->
-        <div class="card">
-            <h1>Weer</h1>
-            <div class="big-value temp">
-                {{ data.weather.temp }}<span>°C</span>
-            </div>
-            <div class="details">{{ data.weather.description }}</div>
-        </div>
-
-        <!-- Tile 4: Traffic Alerts -->
-        <div class="card" style="justify-content: flex-start;">
-            <h1>Verkeersinfo</h1>
-            <ul class="alerts-list">
-                {% for alert in data.traffic_alerts %}
-                <li>{{ alert }}</li>
-                {% endfor %}
-            </ul>
         </div>
     </div>
 
@@ -239,14 +311,6 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
-
-@app.route('/')
-def dashboard():
-    return render_template_string(HTML_TEMPLATE, data=current_status)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
 
 @app.route('/')
 def dashboard():
