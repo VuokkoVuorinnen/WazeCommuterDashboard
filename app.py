@@ -18,7 +18,10 @@ DEFAULT_CONFIG = {
     "weather_long": 4.4025,
     "region": "EU",
     "update_interval": 300,
-    "standard_commute_mins": 45
+    "standard_commute_mins": 45,
+    "notifications_enabled": False,
+    "notify_work_to_home_increase": True,
+    "notify_home_to_work_increase": True
 }
 
 def load_config():
@@ -47,7 +50,8 @@ current_status = {
     "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
     "weather": {"temp": 0, "description": "--"},
     "traffic_alerts": [],
-    "last_updated": "Initializing..."
+    "last_updated": "Initializing...",
+    "notification": None
 }
 
 logger = logging.getLogger('WazeRouteCalculator.WazeRouteCalculator')
@@ -140,22 +144,40 @@ def update_data():
         std_time = CONFIG.get("standard_commute_mins", 45)
         
         # 1. Home -> Work
+        old_to_work_time = current_status["to_work"]["time_mins"]
         t1, d1 = get_waze_route(HOME_ADDRESS, WORK_ADDRESS)
-        trend1 = calculate_trend(t1, current_status["to_work"]["time_mins"], is_first_run)
+        trend1 = calculate_trend(t1, old_to_work_time, is_first_run)
         color1 = calculate_traffic_color(t1, std_time)
         current_status["to_work"] = {"time_mins": t1, "distance_km": d1, "trend": trend1, "color": color1}
-        
+
         # 2. Work -> Home
+        old_to_home_time = current_status["to_home"]["time_mins"]
         t2, d2 = get_waze_route(WORK_ADDRESS, HOME_ADDRESS)
-        trend2 = calculate_trend(t2, current_status["to_home"]["time_mins"], is_first_run)
+        trend2 = calculate_trend(t2, old_to_home_time, is_first_run)
         color2 = calculate_traffic_color(t2, std_time)
         current_status["to_home"] = {"time_mins": t2, "distance_km": d2, "trend": trend2, "color": color2}
-        
-        # 3. Weather
+
+        # 3. Check for notification triggers
+        current_status["notification"] = None
+        if CONFIG.get("notifications_enabled", False) and not is_first_run:
+            if CONFIG.get("notify_home_to_work_increase", True) and trend1 == "up":
+                increase = t1 - old_to_work_time
+                current_status["notification"] = {
+                    "title": "Traffic Alert: Home to Work",
+                    "body": f"Commute time increased to {t1} min (+{increase} min)"
+                }
+            elif CONFIG.get("notify_work_to_home_increase", True) and trend2 == "up":
+                increase = t2 - old_to_home_time
+                current_status["notification"] = {
+                    "title": "Traffic Alert: Work to Home",
+                    "body": f"Commute time increased to {t2} min (+{increase} min)"
+                }
+
+        # 4. Weather
         temp, feels, cond, emoji = get_weather()
         current_status["weather"] = {"temp": temp, "feels_like": feels, "description": cond, "emoji": emoji}
         
-        # 4. Alerts
+        # 5. Alerts
         current_status["traffic_alerts"] = get_traffic_alerts()
         
         current_status["last_updated"] = time.strftime('%H:%M:%S')
@@ -278,6 +300,26 @@ HTML_TEMPLATE = """
         
         .heavy-traffic { color: #ff3b30 !important; }
         .moderate-traffic { color: #ffcc00 !important; }
+
+        .notification-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(90, 200, 250, 0.2);
+            border: 1px solid rgba(90, 200, 250, 0.5);
+            color: #5ac8fa;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+        .notification-btn:hover {
+            background: rgba(90, 200, 250, 0.3);
+            border-color: #5ac8fa;
+        }
+        .notification-btn.hidden { display: none; }
     </style>
     <script>
         function updateClock() {
@@ -288,7 +330,50 @@ HTML_TEMPLATE = """
             document.getElementById('date').textContent = dateStr;
         }
         setInterval(updateClock, 1000);
-        window.onload = updateClock;
+
+        // Browser Notifications
+        const notificationsEnabled = {{ 'true' if config.notifications_enabled else 'false' }};
+
+        function updateNotificationButton() {
+            const btn = document.getElementById('notificationBtn');
+            if (!btn) return;
+            if (!notificationsEnabled || !('Notification' in window)) {
+                btn.classList.add('hidden');
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                btn.classList.add('hidden');
+            } else if (Notification.permission === 'denied') {
+                btn.textContent = 'Notifications blocked';
+                btn.disabled = true;
+            } else {
+                btn.classList.remove('hidden');
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) return;
+            const result = await Notification.requestPermission();
+            updateNotificationButton();
+            if (result === 'granted') {
+                new Notification('Notifications enabled', { body: 'You will be notified when traffic increases.' });
+            }
+        }
+
+        function showNotification(title, body) {
+            if (!notificationsEnabled) return;
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body: body });
+            }
+        }
+
+        window.onload = function() {
+            updateClock();
+            updateNotificationButton();
+            {% if data.notification %}
+            showNotification('{{ data.notification.title }}', '{{ data.notification.body }}');
+            {% endif %}
+        };
     </script>
 </head>
 <body>
@@ -354,13 +439,17 @@ HTML_TEMPLATE = """
     <div class="footer">
         Laatste update: {{ data.last_updated }}
     </div>
+
+    <button id="notificationBtn" class="notification-btn hidden" onclick="requestNotificationPermission()">
+        Enable Notifications
+    </button>
 </body>
 </html>
 """
 
 @app.route('/')
 def dashboard():
-    return render_template_string(HTML_TEMPLATE, data=current_status)
+    return render_template_string(HTML_TEMPLATE, data=current_status, config=CONFIG)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
