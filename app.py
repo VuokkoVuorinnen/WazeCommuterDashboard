@@ -278,6 +278,65 @@ HTML_TEMPLATE = """
         
         .heavy-traffic { color: #ff3b30 !important; }
         .moderate-traffic { color: #ffcc00 !important; }
+
+        /* Mobile Portrait Optimization */
+        @media only screen and (max-width: 768px) and (orientation: portrait) {
+            body {
+                justify-content: flex-start;
+                padding: 20px;
+                box-sizing: border-box;
+                overflow: hidden; /* Prevent scrolling */
+            }
+            .header {
+                flex: 0 0 auto;
+                margin-bottom: 2vh;
+            }
+            /* Responsive text for header */
+            #clock { font-size: 12vw; line-height: 1; }
+            #date { font-size: 4vw; margin-top: 5px; }
+
+            .container {
+                flex: 1 1 auto;
+                width: 100%;
+                margin: 0;
+                max-width: none;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            
+            .row-top {
+                display: flex;
+                flex-direction: column;
+                flex-wrap: nowrap;
+                width: 100%;
+                height: 100%;
+                gap: 2vh;
+            }
+            
+            .card {
+                width: 100%;
+                max-width: none;
+                flex: 1; /* Stretch to fill vertical space evenly */
+                height: auto;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            
+            /* Hide traffic info and footer on phone to save space */
+            .card.wide, .footer { display: none; }
+            
+            /* Massive, stunning fonts for quick glancing */
+            h1 { font-size: 4vw; margin-bottom: 0.5vh; }
+            .big-value { font-size: 20vw; line-height: 1; }
+            .big-value span { font-size: 5vw; }
+            .details { font-size: 5vw; margin-top: 1vh; }
+            .trend { font-size: 10vw; margin-left: 10px; vertical-align: baseline; }
+        }
     </style>
     <script>
         function updateClock() {
