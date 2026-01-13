@@ -8,5 +8,7 @@ services:
     volumes:
       # Mount the config file so it can be edited on the host without rebuilding
       - ./config.json:/app/config.json
+      # Mount the Spotify cache file to persist login from host to container
+      - ./.spotify_cache:/app/.spotify_cache
     environment:
       - TZ=Europe/Brussels # Set timezone for correct clock/logging
