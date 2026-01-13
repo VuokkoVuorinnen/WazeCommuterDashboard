@@ -172,92 +172,124 @@ HTML_TEMPLATE = """
     <title>Commute Dashboard</title>
     <meta http-equiv="refresh" content="300">
     <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: rgba(30, 30, 30, 0.65);
+            --text-color: #ffffff;
+            --accent-green: #32d74b;
+            --accent-red: #ff453a;
+            --accent-yellow: #ffcc00;
+        }
+        
+        * { box-sizing: border-box; }
+
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            /* Fallback color */
-            background-color: #121212;
-            /* Modern Dark Gradient (Deep Night Blue -> Black) */
             background: radial-gradient(circle at center, #1e2a3a 0%, #0d1117 100%);
-            color: #ffffff; 
+            color: var(--text-color); 
             height: 100vh; 
+            width: 100vw;
             margin: 0; 
-            display: flex; 
+            overflow: hidden; /* No scrolling */
+            display: flex;
             flex-direction: column;
-            justify-content: center; 
-            align-items: center; 
         }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        #clock { font-size: 5rem; font-weight: 700; margin: 0; color: #fff; }
-        #date { font-size: 1.5rem; color: #ddd; margin-top: -10px; }
 
         .container {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            align-items: center;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr auto;
+            gap: 1.5vh;
+            padding: 1.5vh;
             width: 100%;
-            max-width: 1200px;
+            height: 100%;
         }
-        .row-top {
-            display: flex;
-            gap: 25px;
-            justify-content: center;
-            flex-wrap: wrap;
+
+        /* 4x1 Layout on very wide screens */
+        @media (min-aspect-ratio: 2.5/1) {
+            .container {
+                grid-template-columns: 1fr 1fr 1fr 1fr;
+                grid-template-rows: 1fr auto;
+            }
         }
+
+        /* 1x4 Layout on tall screens (Mobile Portrait) */
+        @media (max-aspect-ratio: 3/4) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr 1fr 1fr auto;
+            }
+            .card.wide {
+                display: none;
+            }
+            .container {
+                grid-template-rows: 1fr 1fr 1fr 1fr; /* No ticker row */
+            }
+        }
+
         .card {
-            /* Glassmorphism effect */
-            background-color: rgba(30, 30, 30, 0.65);
+            background-color: var(--card-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            
-            padding: 30px;
-            border-radius: 24px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border-radius: 16px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            width: 320px;
-            height: 280px;
-        }
-        .card.wide {
-            width: 100%;
-            max-width: 1010px;
-            height: auto;
-            min-height: 120px;
-            flex-direction: row;
             align-items: center;
-            justify-content: flex-start;
-            padding: 20px 40px;
-            overflow: hidden;
+            text-align: center;
             position: relative;
+            padding: 1rem;
+            min-height: 0; /* Important for grid overflow */
+            min-width: 0;
         }
 
-        h1 { font-size: 1rem; color: #bbb; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .card.wide {
+            grid-column: 1 / -1; /* Span all columns */
+            flex-direction: row;
+            justify-content: flex-start;
+            padding: 0 2rem;
+            height: 8vh; /* Fixed small height for ticker */
+            min-height: 50px;
+        }
+
+        h1 { 
+            font-size: 2.5vh; 
+            color: #bbb; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin: 0 0 1vh 0; 
+        }
         
-        .big-value { font-size: 5rem; font-weight: 700; line-height: 1; color: #4cd964; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        .big-value span { font-size: 1.8rem; font-weight: 400; color: #aaa; }
+        /* Dynamic font sizing using vh/vw to ensure fit */
+        .big-value { 
+            font-size: 8vh; 
+            font-weight: 700; 
+            line-height: 1; 
+            color: #4cd964; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+        }
+        .big-value span { font-size: 3vh; font-weight: 400; color: #aaa; }
         .big-value.temp { color: #5ac8fa; }
+        .big-value.time { color: #ffffff; font-variant-numeric: tabular-nums; }
         
-        .details { margin-top: 15px; font-size: 1.4rem; color: #eee; }
+        .details { 
+            margin-top: 1vh; 
+            font-size: 2vh; 
+            color: #eee; 
+        }
         
-        /* Trend Arrows */
-        .trend { font-size: 2.5rem; margin-left: 15px; vertical-align: middle; }
-        .trend.up { color: #ff453a; text-shadow: 0 0 10px rgba(255, 59, 48, 0.4); } 
-        .trend.down { color: #32d74b; text-shadow: 0 0 10px rgba(50, 215, 75, 0.4); } 
+        .trend { font-size: 4vh; vertical-align: middle; }
+        .trend.up { color: var(--accent-red); } 
+        .trend.down { color: var(--accent-green); } 
         
+        /* Ticker styles */
         .ticker-wrap {
             width: 100%;
             overflow: hidden;
             white-space: nowrap;
-            /* Adjusted mask for transparent background compatibility */
             mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
         .ticker {
             display: inline-block;
@@ -266,139 +298,33 @@ HTML_TEMPLATE = """
         .ticker-item {
             display: inline-block;
             padding: 0 2rem;
-            font-size: 1.5rem;
-            color: #ffcc00;
+            font-size: 2.5vh;
+            color: var(--accent-yellow);
+            line-height: 8vh; /* Center vertically in the fixed height bar */
         }
         @keyframes ticker {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
         }
         
-        .footer { margin-top: 40px; font-size: 0.9rem; color: #444; }
+        .footer { 
+            position: absolute; 
+            bottom: 5px; 
+            right: 10px; 
+            font-size: 0.8rem; 
+            color: #444; 
+            pointer-events: none;
+        }
         
         .heavy-traffic { color: #ff3b30 !important; }
         .moderate-traffic { color: #ffcc00 !important; }
 
-        /* Mobile Portrait Optimization */
-        @media only screen and (max-width: 768px) and (orientation: portrait) {
-            body {
-                justify-content: flex-start;
-                padding: 20px;
-                box-sizing: border-box;
-                overflow: hidden; /* Prevent scrolling */
-            }
-            .header {
-                flex: 0 0 auto;
-                margin-bottom: 2vh;
-            }
-            /* Responsive text for header */
-            #clock { font-size: 12vw; line-height: 1; }
-            #date { font-size: 4vw; margin-top: 5px; }
-
-            .container {
-                flex: 1 1 auto;
-                width: 100%;
-                margin: 0;
-                max-width: none;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            
-            .row-top {
-                display: flex;
-                flex-direction: column;
-                flex-wrap: nowrap;
-                width: 100%;
-                height: 100%;
-                gap: 2vh;
-            }
-            
-            .card {
-                width: 100%;
-                max-width: none;
-                flex: 1; /* Stretch to fill vertical space evenly */
-                height: auto;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }
-            
-            /* Hide traffic info and footer on phone to save space */
-            .card.wide, .footer { display: none; }
-            
-            /* Massive, stunning fonts for quick glancing */
-            h1 { font-size: 4vw; margin-bottom: 0.5vh; }
-            .big-value { font-size: 20vw; line-height: 1; }
-            .big-value span { font-size: 5vw; }
-            .details { font-size: 5vw; margin-top: 1vh; }
-            .trend { font-size: 10vw; margin-left: 10px; vertical-align: baseline; }
-        }
-
-        /* Mobile Landscape Optimization */
-        @media only screen and (max-height: 600px) and (orientation: landscape) {
-            body {
-                padding: 10px;
-                overflow: hidden;
-            }
-            .header {
-                margin-bottom: 1vh;
-                display: flex;
-                gap: 20px;
-                align-items: baseline;
-                justify-content: center;
-            }
-            #clock { font-size: 8vh; }
-            #date { font-size: 4vh; }
-
-            .container {
-                width: 95%;
-                max-width: none;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                flex: 1;
-            }
-            
-            .row-top {
-                display: flex;
-                flex-direction: row;
-                flex-wrap: nowrap;
-                width: 100%;
-                gap: 15px;
-                align-items: stretch;
-                height: 75vh;
-            }
-            
-            .card {
-                flex: 1;
-                width: auto;
-                height: auto;
-                margin: 0;
-                padding: 10px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }
-            
-            /* Hide traffic info and footer */
-            .card.wide, .footer { display: none; }
-            
-            h1 { font-size: 4vh; margin-bottom: 1vh; }
-            .big-value { font-size: 18vh; line-height: 1; }
-            .big-value span { font-size: 5vh; }
-            .details { font-size: 5vh; margin-top: 1vh; }
-            .trend { font-size: 10vh; }
-        }
     </style>
     <script>
         function updateClock() {
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateStr = now.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short' });
             document.getElementById('clock').textContent = timeStr;
             document.getElementById('date').textContent = dateStr;
         }
@@ -407,51 +333,51 @@ HTML_TEMPLATE = """
     </script>
 </head>
 <body>
-    <div class="header">
-        <div id="clock">00:00:00</div>
-        <div id="date">Laden...</div>
-    </div>
-
     <div class="container">
-        <div class="row-top">
-            <!-- Tile 1: Home -> Work -->
-            <div class="card">
-                <h1>Home ➝ Work</h1>
-                <div class="big-value {{ data.to_work.color }}">
-                    {{ data.to_work.time_mins }}<span>min</span>
-                    {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
-                    {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
-                </div>
-                <div class="details">{{ data.to_work.distance_km }} km</div>
-            </div>
+        <!-- Tile 0: Clock -->
+        <div class="card">
+            <h1>Tijd & Datum</h1>
+            <div class="big-value time" id="clock">00:00</div>
+            <div class="details" id="date">Laden...</div>
+        </div>
 
-            <!-- Tile 2: Work -> Home -->
-            <div class="card">
-                <h1>Work ➝ Home</h1>
-                <div class="big-value {{ data.to_home.color }}">
-                    {{ data.to_home.time_mins }}<span>min</span>
-                    {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
-                    {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
-                </div>
-                <div class="details">{{ data.to_home.distance_km }} km</div>
+        <!-- Tile 1: Home -> Work -->
+        <div class="card">
+            <h1>Home ➝ Work</h1>
+            <div class="big-value {{ data.to_work.color }}">
+                {{ data.to_work.time_mins }}<span>min</span>
+                {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
             </div>
+            <div class="details">{{ data.to_work.distance_km }} km</div>
+        </div>
 
-            <!-- Tile 3: Weather -->
-            <div class="card">
-                <h1>Weer</h1>
-                <div class="big-value temp">
-                    {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
-                </div>
-                <div class="details">
-                    {{ data.weather.description }}<br>
-                    <span style="font-size: 1rem; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
-                </div>
+        <!-- Tile 2: Work -> Home -->
+        <div class="card">
+            <h1>Work ➝ Home</h1>
+            <div class="big-value {{ data.to_home.color }}">
+                {{ data.to_home.time_mins }}<span>min</span>
+                {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+            </div>
+            <div class="details">{{ data.to_home.distance_km }} km</div>
+        </div>
+
+        <!-- Tile 3: Weather -->
+        <div class="card">
+            <h1>Weer</h1>
+            <div class="big-value temp">
+                {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
+            </div>
+            <div class="details">
+                {{ data.weather.description }}<br>
+                <span style="font-size: 0.8em; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
             </div>
         </div>
 
         <!-- Tile 4: Traffic Alerts (Ticker) -->
         <div class="card wide">
-            <h1 style="margin: 0; margin-right: 20px; white-space: nowrap; border-right: 2px solid #333; padding-right: 20px;">Verkeer</h1>
+            <h1 style="margin: 0; margin-right: 20px; white-space: nowrap; border-right: 2px solid #333; padding-right: 20px; font-size: 2vh;">Verkeer</h1>
             <div class="ticker-wrap">
                 <div class="ticker">
                     {% if data.traffic_alerts %}
@@ -467,7 +393,7 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="footer">
-        Laatste update: {{ data.last_updated }}
+        Updated: {{ data.last_updated }}
     </div>
 </body>
 </html>
