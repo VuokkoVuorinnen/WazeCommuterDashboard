@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Commute Dashboard</title>
+    <meta http-equiv="refresh" content="300">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        function updateClock() {
+            const now = new Date();
+            // Using a specific locale for consistent formatting
+            const timeStr = now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const dateStr = now.toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+
+            const clockEl = document.getElementById('clock');
+            const dateEl = document.getElementById('date');
+
+            if (clockEl) clockEl.textContent = timeStr;
+            if (dateEl) dateEl.textContent = dateStr;
+        }
+
+        // Run immediately and then every second
+        document.addEventListener('DOMContentLoaded', () => {
+            updateClock();
+            setInterval(updateClock, 1000);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Tile 0: Clock -->
+        <div class="card">
+            <h1>Tijd & Datum</h1>
+            <div class="big-value time" id="clock">00:00</div>
+            <div class="details" id="date">Laden...</div>
+        </div>
+
+        <!-- Tile 1: Weather -->
+        <div class="card">
+            <h1>Weer</h1>
+            <div class="big-value temp">
+                {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
+            </div>
+            <div class="details">
+                {{ data.weather.description }}<br>
+                <span class="sub-details">Gevoel: {{ data.weather.feels_like }}°C</span>
+            </div>
+        </div>
+
+        <!-- Tile 2: Home -> Work -->
+        <div class="card">
+            <h1>Home ➝ Work</h1>
+            <div class="big-value {{ data.to_work.color }}">
+                {{ data.to_work.time_mins }}<span>min</span>
+                {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+            </div>
+            <div class="details">{{ data.to_work.distance_km }} km</div>
+        </div>
+
+        <!-- Tile 3: Spotify -->
+        <div class="card spotify" {% if data.spotify.is_playing and data.spotify.cover_url %}style="background-image: url('{{ data.spotify.cover_url }}');"{% endif %}>
+            <div class="spotify-icon">🎵</div>
+            <div class="spotify-info">
+                {% if data.spotify.is_playing %}
+                    <div class="spotify-title">{{ data.spotify.title }}</div>
+                    <div class="spotify-artist">{{ data.spotify.artist }}</div>
+                {% else %}
+                    <div class="spotify-title not-playing">{{ data.spotify.title or 'Not Playing' }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tile 4: Traffic Alerts (Ticker) -->
+        <div class="card wide">
+            <h1 class="ticker-label">Verkeer</h1>
+            <div class="ticker-wrap">
+                <div class="ticker">
+                    {% if data.traffic_alerts %}
+                        {% for alert in data.traffic_alerts %}
+                        <div class="ticker-item">⚠️ {{ alert }}</div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="ticker-item no-incidents">Geen incidenten gemeld.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Updated: {{ data.last_updated }}
+    </div>
+</body>
+</html>

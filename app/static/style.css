@@ -1,0 +1,245 @@
+/* --- VARIABLES & GLOBAL STYLES --- */
+:root {
+    --bg-gradient-start: #1e2a3a;
+    --bg-gradient-end: #0d1117;
+    --card-bg: rgba(30, 30, 30, 0.75);
+    --text-color: #ffffff;
+    --text-secondary: #bbbbbb;
+    --text-tertiary: #888888;
+    --border-color: rgba(255, 255, 255, 0.1);
+
+    /* Accent Colors */
+    --accent-green: #32d74b;
+    --accent-red: #ff453a;
+    --accent-yellow: #ffcc00;
+    --accent-blue: #5ac8fa; /* For weather */
+    --spotify-green: #1DB954;
+
+    /* Sizing */
+    --grid-gap: 1.5vmin;
+    --card-padding: 1.5vmin;
+    --card-radius: 16px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at center, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+    color: var(--text-color);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden; /* Prevent scrolling */
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- MAIN LAYOUT --- */
+.container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr auto;
+    gap: var(--grid-gap);
+    padding: var(--grid-gap);
+    width: 100%;
+    height: 100%;
+}
+
+.card {
+    background-color: var(--card-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--card-radius);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: var(--card-padding);
+    min-height: 0; /* Important for grid item overflow */
+    min-width: 0;
+}
+
+/* --- CARD-SPECIFIC STYLES --- */
+h1 {
+    font-size: clamp(1rem, 3.5vh, 1.5rem);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 1vh;
+}
+
+.big-value {
+    font-size: clamp(3rem, 11vh, 8rem);
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    color: var(--accent-green);
+}
+
+.big-value span {
+    font-size: clamp(1rem, 4vh, 2rem);
+    font-weight: 400;
+    color: var(--text-tertiary);
+    vertical-align: baseline;
+}
+
+.big-value.temp { color: var(--accent-blue); }
+.big-value.time { color: var(--text-color); font-variant-numeric: tabular-nums; }
+
+.details {
+    font-size: clamp(1rem, 3vh, 1.5rem);
+    color: #eee;
+}
+
+.sub-details {
+    font-size: 0.8em;
+    color: var(--text-tertiary);
+}
+
+.trend {
+    font-size: clamp(1.5rem, 5vh, 3rem);
+    vertical-align: middle;
+    margin-left: 10px;
+}
+.trend.up { color: var(--accent-red); }
+.trend.down { color: var(--accent-green); }
+
+/* Traffic Color Indicators */
+.heavy-traffic { color: var(--accent-red) !important; }
+.moderate-traffic { color: var(--accent-yellow) !important; }
+
+/* --- WIDE CARD (TICKER) --- */
+.card.wide {
+    grid-column: 1 / -1; /* Span all columns */
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 0 1rem;
+    height: 8vh;
+    min-height: 50px;
+}
+
+.ticker-label {
+    margin: 0;
+    margin-right: 20px;
+    white-space: nowrap;
+    border-right: 2px solid #333;
+    padding-right: 20px;
+    font-size: clamp(0.9rem, 2vh, 1.2rem);
+}
+
+.ticker-wrap {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    /* Fade out edges for a smoother look */
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.ticker {
+    display: inline-block;
+    /* Animation speed is duration per cycle. Longer for more items. */
+    animation: ticker 60s linear infinite;
+}
+
+.ticker-item {
+    display: inline-block;
+    padding: 0 2rem;
+    font-size: clamp(0.9rem, 2.5vh, 1.2rem);
+    color: var(--accent-yellow);
+    line-height: 8vh; /* Center vertically in the bar */
+}
+.ticker-item.no-incidents { color: var(--accent-green); }
+
+@keyframes ticker {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* --- SPOTIFY CARD --- */
+.card.spotify {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+    justify-content: flex-end; /* Align content to the bottom */
+    align-items: flex-start; /* Align content to the left */
+    text-align: left;
+    padding: 1.5vmin;
+}
+
+.card.spotify::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.1));
+    z-index: 1;
+}
+
+.spotify-info {
+    z-index: 2;
+    width: 100%;
+}
+
+.spotify-title, .spotify-artist {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.spotify-title {
+    font-size: clamp(1rem, 2.5vh, 1.4rem);
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 0.5vh;
+}
+.spotify-title.not-playing { color: var(--text-tertiary); }
+.spotify-artist {
+    font-size: clamp(0.9rem, 2vh, 1.2rem);
+    color: var(--text-secondary);
+}
+
+.spotify-icon {
+    position: absolute;
+    top: 1.5vmin;
+    right: 1.5vmin;
+    font-size: clamp(1.2rem, 3vh, 1.8rem);
+    color: var(--spotify-green);
+    z-index: 2;
+}
+
+/* --- FOOTER --- */
+.footer {
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    font-size: clamp(0.6rem, 1.2vh, 0.8rem);
+    color: #444;
+    pointer-events: none; /* Can't be clicked */
+}
+
+/* --- RESPONSIVE DESIGN --- */
+
+/* Very Wide Screens (e.g., 4x1 layout) */
+@media (min-aspect-ratio: 2.5/1) {
+    .container {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-rows: 1fr auto;
+    }
+}
+
+/* Tall Screens (Mobile Portrait, 1x4 layout) */
+@media (max-aspect-ratio: 3/4) {
+    .container {
+        grid-template-columns: 1fr;
+        /* Make space for all cards vertically */
+        grid-template-rows: 1fr 1fr 1fr 1fr auto;
+    }
+}
