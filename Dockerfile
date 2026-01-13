@@ -1,30 +1,42 @@
-# Use an official lightweight Python image.
-# https://hub.docker.com/_/python
-FROM python:3.12-slim
+# Stage 1: Build the application with dependencies
+FROM python:3.12-slim AS builder
 
-# Set the working directory to /app
 WORKDIR /app
 
-# Prevent Python from writing pyc files to disc
+# Set environment variables for Python
 ENV PYTHONDONTWRITEBYTECODE=1
-# Prevent Python from buffering stdout and stderr
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies (none currently needed for our pure-python deps, 
-# but kept here if we need to add things like 'git' or 'gcc' later)
-# RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+# Install build dependencies if needed (e.g., for packages with C extensions)
+# RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
-# Copy the requirements file into the container
+# Install Python dependencies
 COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Stage 2: Create the final, lean production image
+FROM python:3.12-slim
+
+# Create a non-root user for security
+RUN addgroup --system app && adduser --system --group app
+
+WORKDIR /app
+
+# Copy the installed dependencies from the builder stage
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache /wheels/*
+
+# Copy the application code
 COPY . .
 
-# Expose port 5000 for the Flask app
-EXPOSE 5000
+# Set the non-root user as the current user
+USER app
 
-# Run the application
-CMD ["python", "app.py"]
+# Expose the port Gunicorn will run on
+EXPOSE 8000
+
+# Use Gunicorn as the production WSGI server
+# Bind to 0.0.0.0 to allow external connections.
+# Use environment variables to configure workers for flexibility.
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "run:app"]

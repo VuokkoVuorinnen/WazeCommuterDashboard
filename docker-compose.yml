@@ -1,14 +1,18 @@
+version: '3.8'
+
 services:
-  waze-dashboard:
+  dashboard:
     build: .
-    container_name: waze-dashboard
-    restart: unless-stopped
+    # Use an env_file to load environment variables from a .env file
+    # This is great for local development.
+    env_file:
+      - .env
     ports:
-      - "5000:5000"
+      # Map port 8000 on the host to port 8000 in the container
+      - "8000:8000"
     volumes:
-      # Mount the config file so it can be edited on the host without rebuilding
-      - ./config.json:/app/config.json
-      # Mount the Spotify cache file to persist login from host to container
+      # Mount the .spotify_cache file into the container.
+      # This preserves your Spotify login token across container restarts.
+      # An empty file must exist on the host first: `touch .spotify_cache`
       - ./.spotify_cache:/app/.spotify_cache
-    environment:
-      - TZ=Europe/Brussels # Set timezone for correct clock/logging
+    restart: unless-stopped
