@@ -341,7 +341,19 @@ HTML_TEMPLATE = """
             <div class="details" id="date">Laden...</div>
         </div>
 
-        <!-- Tile 1: Home -> Work -->
+        <!-- Tile 1: Weather -->
+        <div class="card">
+            <h1>Weer</h1>
+            <div class="big-value temp">
+                {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
+            </div>
+            <div class="details">
+                {{ data.weather.description }}<br>
+                <span style="font-size: 0.8em; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
+            </div>
+        </div>
+
+        <!-- Tile 2: Home -> Work -->
         <div class="card">
             <h1>Home ➝ Work</h1>
             <div class="big-value {{ data.to_work.color }}">
@@ -352,7 +364,7 @@ HTML_TEMPLATE = """
             <div class="details">{{ data.to_work.distance_km }} km</div>
         </div>
 
-        <!-- Tile 2: Work -> Home -->
+        <!-- Tile 3: Work -> Home -->
         <div class="card">
             <h1>Work ➝ Home</h1>
             <div class="big-value {{ data.to_home.color }}">
@@ -361,18 +373,6 @@ HTML_TEMPLATE = """
                 {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
             </div>
             <div class="details">{{ data.to_home.distance_km }} km</div>
-        </div>
-
-        <!-- Tile 3: Weather -->
-        <div class="card">
-            <h1>Weer</h1>
-            <div class="big-value temp">
-                {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
-            </div>
-            <div class="details">
-                {{ data.weather.description }}<br>
-                <span style="font-size: 0.8em; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
-            </div>
         </div>
 
         <!-- Tile 4: Traffic Alerts (Ticker) -->
