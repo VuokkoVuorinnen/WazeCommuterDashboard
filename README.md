@@ -53,7 +53,11 @@ To enable the "Now Playing" feature:
 2.  Create a new App.
 3.  In the App settings, add `https://127.0.0.1:8888/callback` to the **Redirect URIs**.
 4.  Copy your **Client ID** and **Client Secret** into your `config.json`.
-5.  **First Run:** When you start the application, check the console output. It may ask you to visit a URL to authorize access. Open that URL in a browser logged into your Spotify account. After authorizing, you will be redirected to a page that might fail to load (because it's localhost) - this is normal. Copy the URL from your address bar (which contains the code) and paste it back into the console if prompted, or the application might handle it automatically if you have a local server running. *Note: Running this locally on your desktop first to generate the `.spotify_cache` file is recommended before deploying to a headless device like a Raspberry Pi.*
+5.  **First Run:** When you start the application locally (`python app.py`), check the console output. It may ask you to visit a URL to authorize access.
+    *   **Authorization:** Open that URL in your browser and authorize the app.
+    *   **The Redirect:** You will be redirected to `https://127.0.0.1:8888/...`. **Your browser will likely show a "Connection Refused" or "Unable to Connect" error.** This is **expected** because no secure server is waiting there.
+    *   **The Fix:** Don't panic. Simply **copy the full URL** from your browser's address bar (starting with `https://...code=...`) and **paste it back into the terminal** where the app is running.
+    *   **Cache:** This generates a `.spotify_cache` file. This file stores your login so you don't need to do this again.
 
 ### 5. Run the Application
 Start the Flask server:
