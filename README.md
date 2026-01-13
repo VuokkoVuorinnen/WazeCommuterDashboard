@@ -41,7 +41,7 @@ Edit `config.json`:
     "standard_commute_mins": 45,
     "spotify_client_id": "YOUR_SPOTIFY_CLIENT_ID",
     "spotify_client_secret": "YOUR_SPOTIFY_CLIENT_SECRET",
-    "spotify_redirect_uri": "https://localhost:8888/callback"
+    "spotify_redirect_uri": "https://127.0.0.1:8888/callback"
 }
 ```
 *   `standard_commute_mins`: Your typical commute time in minutes. Used to calculate traffic severity colors (Orange > 10% delay, Red > 33% delay).
@@ -51,7 +51,7 @@ Edit `config.json`:
 To enable the "Now Playing" feature:
 1.  Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
 2.  Create a new App.
-3.  In the App settings, add `https://localhost:8888/callback` to the **Redirect URIs**.
+3.  In the App settings, add `https://127.0.0.1:8888/callback` to the **Redirect URIs**.
 4.  Copy your **Client ID** and **Client Secret** into your `config.json`.
 5.  **First Run:** When you start the application, check the console output. It may ask you to visit a URL to authorize access. Open that URL in a browser logged into your Spotify account. After authorizing, you will be redirected to a page that might fail to load (because it's localhost) - this is normal. Copy the URL from your address bar (which contains the code) and paste it back into the console if prompted, or the application might handle it automatically if you have a local server running. *Note: Running this locally on your desktop first to generate the `.spotify_cache` file is recommended before deploying to a headless device like a Raspberry Pi.*
 

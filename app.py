@@ -23,7 +23,7 @@ DEFAULT_CONFIG = {
     "standard_commute_mins": 45,
     "spotify_client_id": "",
     "spotify_client_secret": "",
-    "spotify_redirect_uri": "https://localhost:8888/callback"
+    "spotify_redirect_uri": "https://127.0.0.1:8888/callback"
 }
 
 def load_config():
