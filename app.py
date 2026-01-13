@@ -240,7 +240,7 @@ HTML_TEMPLATE = """
             align-items: center;
             text-align: center;
             position: relative;
-            padding: 1rem;
+            padding: 0.5rem;
             min-height: 0; /* Important for grid overflow */
             min-width: 0;
         }
@@ -249,13 +249,13 @@ HTML_TEMPLATE = """
             grid-column: 1 / -1; /* Span all columns */
             flex-direction: row;
             justify-content: flex-start;
-            padding: 0 2rem;
+            padding: 0 1rem;
             height: 8vh; /* Fixed small height for ticker */
             min-height: 50px;
         }
 
         h1 { 
-            font-size: 2.5vh; 
+            font-size: 3.5vh; 
             color: #bbb; 
             text-transform: uppercase; 
             letter-spacing: 2px; 
@@ -264,23 +264,23 @@ HTML_TEMPLATE = """
         
         /* Dynamic font sizing using vh/vw to ensure fit */
         .big-value { 
-            font-size: 8vh; 
+            font-size: 11vh; 
             font-weight: 700; 
             line-height: 1; 
             color: #4cd964; 
             text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
         }
-        .big-value span { font-size: 3vh; font-weight: 400; color: #aaa; }
+        .big-value span { font-size: 4vh; font-weight: 400; color: #aaa; }
         .big-value.temp { color: #5ac8fa; }
         .big-value.time { color: #ffffff; font-variant-numeric: tabular-nums; }
         
         .details { 
             margin-top: 1vh; 
-            font-size: 2vh; 
+            font-size: 3vh; 
             color: #eee; 
         }
         
-        .trend { font-size: 4vh; vertical-align: middle; }
+        .trend { font-size: 5vh; vertical-align: middle; }
         .trend.up { color: var(--accent-red); } 
         .trend.down { color: var(--accent-green); } 
         
