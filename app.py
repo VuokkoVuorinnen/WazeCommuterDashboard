@@ -215,6 +215,289 @@ def update_data():
         current_status["last_updated"] = time.strftime('%H:%M:%S')
         time.sleep(UPDATE_INTERVAL)
 
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Commute Dashboard</title>
+    <meta http-equiv="refresh" content="300">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: rgba(30, 30, 30, 0.65);
+            --text-color: #ffffff;
+            --accent-green: #32d74b;
+            --accent-red: #ff453a;
+            --accent-yellow: #ffcc00;
+        }
+        
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: radial-gradient(circle at center, #1e2a3a 0%, #0d1117 100%);
+            color: var(--text-color); 
+            height: 100vh; 
+            width: 100vw;
+            margin: 0; 
+            overflow: hidden; /* No scrolling */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr auto;
+            gap: 1.5vh;
+            padding: 1.5vh;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 4x1 Layout on very wide screens */
+        @media (min-aspect-ratio: 2.5/1) {
+            .container {
+                grid-template-columns: 1fr 1fr 1fr 1fr;
+                grid-template-rows: 1fr auto;
+            }
+        }
+
+        /* 1x4 Layout on tall screens (Mobile Portrait) */
+        @media (max-aspect-ratio: 3/4) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr 1fr 1fr auto;
+            }
+            .card.wide {
+                display: none;
+            }
+            .container {
+                grid-template-rows: 1fr 1fr 1fr 1fr; /* No ticker row */
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            padding: 0.5rem;
+            min-height: 0; /* Important for grid overflow */
+            min-width: 0;
+        }
+
+        .card.wide {
+            grid-column: 1 / -1; /* Span all columns */
+            flex-direction: row;
+            justify-content: flex-start;
+            padding: 0 1rem;
+            height: 8vh; /* Fixed small height for ticker */
+            min-height: 50px;
+        }
+
+        h1 { 
+            font-size: 3.5vh; 
+            color: #bbb; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin: 0 0 1vh 0; 
+        }
+        
+        /* Dynamic font sizing using vh/vw to ensure fit */
+        .big-value { 
+            font-size: 11vh; 
+            font-weight: 700; 
+            line-height: 1; 
+            color: #4cd964; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+        }
+        .big-value span { font-size: 4vh; font-weight: 400; color: #aaa; }
+        .big-value.temp { color: #5ac8fa; }
+        .big-value.time { color: #ffffff; font-variant-numeric: tabular-nums; }
+        
+        .details { 
+            margin-top: 1vh; 
+            font-size: 3vh; 
+            color: #eee; 
+        }
+        
+        .trend { font-size: 5vh; vertical-align: middle; }
+        .trend.up { color: var(--accent-red); } 
+        .trend.down { color: var(--accent-green); } 
+        
+        /* Ticker styles */
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+        .ticker {
+            display: inline-block;
+            animation: ticker 60s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 2rem;
+            font-size: 2.5vh;
+            color: var(--accent-yellow);
+            line-height: 8vh; /* Center vertically in the fixed height bar */
+        }
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .footer { 
+            position: absolute; 
+            bottom: 5px; 
+            right: 10px; 
+            font-size: 0.8rem; 
+            color: #444; 
+            pointer-events: none;
+        }
+        
+        .heavy-traffic { color: #ff3b30 !important; }
+        .moderate-traffic { color: #ffcc00 !important; }
+
+        .card.spotify {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+            justify-content: flex-end;
+            align-items: flex-start;
+            text-align: left;
+            padding: 1.5vh;
+        }
+        .card.spotify::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.2));
+            z-index: 1;
+        }
+        .spotify-info {
+            z-index: 2;
+            width: 100%;
+        }
+        .spotify-title {
+            font-size: 2.5vh;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 0.5vh;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .spotify-artist {
+            font-size: 2vh;
+            color: #ccc;
+        }
+        .spotify-icon {
+            position: absolute;
+            top: 1.5vh;
+            right: 1.5vh;
+            font-size: 3vh;
+            color: #1DB954;
+            z-index: 2;
+        }
+
+    </style>
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+            document.getElementById('clock').textContent = timeStr;
+            document.getElementById('date').textContent = dateStr;
+        }
+        setInterval(updateClock, 1000);
+        window.onload = updateClock;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Tile 0: Clock -->
+        <div class="card">
+            <h1>Tijd & Datum</h1>
+            <div class="big-value time" id="clock">00:00</div>
+            <div class="details" id="date">Laden...</div>
+        </div>
+
+        <!-- Tile 1: Weather -->
+        <div class="card">
+            <h1>Weer</h1>
+            <div class="big-value temp">
+                {{ data.weather.emoji }} {{ data.weather.temp }}<span>°C</span>
+            </div>
+            <div class="details">
+                {{ data.weather.description }}<br>
+                <span style="font-size: 0.8em; color: #aaa;">Gevoel: {{ data.weather.feels_like }}°C</span>
+            </div>
+        </div>
+
+        <!-- Tile 2: Home -> Work -->
+        <div class="card">
+            <h1>Home ➝ Work</h1>
+            <div class="big-value {{ data.to_work.color }}">
+                {{ data.to_work.time_mins }}<span>min</span>
+                {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+            </div>
+            <div class="details">{{ data.to_work.distance_km }} km</div>
+        </div>
+
+        <!-- Tile 3: Spotify -->
+        <div class="card spotify" {% if data.spotify.is_playing %}style="background-image: url('{{ data.spotify.cover_url }}');"{% endif %}>
+            <div class="spotify-icon">🎵</div>
+            <div class="spotify-info">
+                {% if data.spotify.is_playing %}
+                    <div class="spotify-title">{{ data.spotify.title }}</div>
+                    <div class="spotify-artist">{{ data.spotify.artist }}</div>
+                {% else %}
+                    <div class="spotify-title" style="color: #888;">Not Playing</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tile 4: Traffic Alerts (Ticker) -->
+        <div class="card wide">
+            <h1 style="margin: 0; margin-right: 20px; white-space: nowrap; border-right: 2px solid #333; padding-right: 20px; font-size: 2vh;">Verkeer</h1>
+            <div class="ticker-wrap">
+                <div class="ticker">
+                    {% if data.traffic_alerts %}
+                        {% for alert in data.traffic_alerts %}
+                        <div class="ticker-item">⚠️ {{ alert }}</div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="ticker-item" style="color: #4cd964;">Geen incidenten gemeld.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Updated: {{ data.last_updated }}
+    </div>
+</body>
+</html>
+"""
+
+@app.route('/')
+def dashboard():
+    return render_template_string(HTML_TEMPLATE, data=current_status)
+
 if __name__ == '__main__':
     # Initialize Spotify before starting threads/server to allow CLI interaction
     init_spotify()

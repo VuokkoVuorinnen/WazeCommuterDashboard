@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 config.json
 .venv/
+.spotify_cache
+app.log
+*.swp
