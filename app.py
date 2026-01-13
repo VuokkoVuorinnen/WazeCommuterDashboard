@@ -337,6 +337,62 @@ HTML_TEMPLATE = """
             .details { font-size: 5vw; margin-top: 1vh; }
             .trend { font-size: 10vw; margin-left: 10px; vertical-align: baseline; }
         }
+
+        /* Mobile Landscape Optimization */
+        @media only screen and (max-height: 600px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+                overflow: hidden;
+            }
+            .header {
+                margin-bottom: 1vh;
+                display: flex;
+                gap: 20px;
+                align-items: baseline;
+                justify-content: center;
+            }
+            #clock { font-size: 8vh; }
+            #date { font-size: 4vh; }
+
+            .container {
+                width: 95%;
+                max-width: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                flex: 1;
+            }
+            
+            .row-top {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: nowrap;
+                width: 100%;
+                gap: 15px;
+                align-items: stretch;
+                height: 75vh;
+            }
+            
+            .card {
+                flex: 1;
+                width: auto;
+                height: auto;
+                margin: 0;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+            
+            /* Hide traffic info and footer */
+            .card.wide, .footer { display: none; }
+            
+            h1 { font-size: 4vh; margin-bottom: 1vh; }
+            .big-value { font-size: 18vh; line-height: 1; }
+            .big-value span { font-size: 5vh; }
+            .details { font-size: 5vh; margin-top: 1vh; }
+            .trend { font-size: 10vh; }
+        }
     </style>
     <script>
         function updateClock() {
