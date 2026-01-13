@@ -47,15 +47,25 @@
             </div>
         </div>
 
-        <!-- Tile 2: Home -> Work -->
+        <!-- Tile 2: Commute -->
         <div class="card">
-            <h1>Home ➝ Work</h1>
-            <div class="big-value {{ data.to_work.color }}">
-                {{ data.to_work.time_mins }}<span>min</span>
-                {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
-                {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
-            </div>
-            <div class="details">{{ data.to_work.distance_km }} km</div>
+            {% if commute_mode == 'to_work' %}
+                <h1>Home ➝ Work</h1>
+                <div class="big-value {{ data.to_work.color }}">
+                    {{ data.to_work.time_mins }}<span>min</span>
+                    {% if data.to_work.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                    {% if data.to_work.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+                </div>
+                <div class="details">{{ data.to_work.distance_km }} km</div>
+            {% else %}
+                <h1>Work ➝ Home</h1>
+                <div class="big-value {{ data.to_home.color }}">
+                    {{ data.to_home.time_mins }}<span>min</span>
+                    {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
+                    {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+                </div>
+                <div class="details">{{ data.to_home.distance_km }} km</div>
+            {% endif %}
         </div>
 
         <!-- Tile 3: Spotify -->
