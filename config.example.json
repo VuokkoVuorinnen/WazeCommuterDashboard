@@ -3,5 +3,8 @@
     "work_address": "Your Work Address, City, Country",
     "weather_lat": 50.8503,
     "weather_long": 4.3517,
-    "standard_commute_mins": 45
+    "standard_commute_mins": 45,
+    "spotify_client_id": "YOUR_CLIENT_ID",
+    "spotify_client_secret": "YOUR_CLIENT_SECRET",
+    "spotify_redirect_uri": "http://localhost:8888/callback"
 }

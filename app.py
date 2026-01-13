@@ -7,6 +7,8 @@ import os
 import xml.etree.ElementTree as ET
 from flask import Flask, render_template_string
 import WazeRouteCalculator
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 
 app = Flask(__name__)
 
@@ -18,7 +20,10 @@ DEFAULT_CONFIG = {
     "weather_long": 4.4025,
     "region": "EU",
     "update_interval": 300,
-    "standard_commute_mins": 45
+    "standard_commute_mins": 45,
+    "spotify_client_id": "",
+    "spotify_client_secret": "",
+    "spotify_redirect_uri": "http://localhost:8888/callback"
 }
 
 def load_config():
@@ -47,11 +52,48 @@ current_status = {
     "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
     "weather": {"temp": 0, "description": "--"},
     "traffic_alerts": [],
+    "spotify": {"is_playing": False, "title": "", "artist": "", "cover_url": ""},
     "last_updated": "Initializing..."
 }
 
 logger = logging.getLogger('WazeRouteCalculator.WazeRouteCalculator')
 logger.setLevel(logging.WARNING)
+
+# Spotify Client (Lazy init)
+sp = None
+
+def get_spotify_data():
+    global sp
+    try:
+        if not CONFIG["spotify_client_id"] or not CONFIG["spotify_client_secret"]:
+            return {"is_playing": False, "title": "Not Configured", "artist": "Check config", "cover_url": ""}
+
+        if sp is None:
+            sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+                client_id=CONFIG["spotify_client_id"],
+                client_secret=CONFIG["spotify_client_secret"],
+                redirect_uri=CONFIG["spotify_redirect_uri"],
+                scope="user-read-currently-playing",
+                open_browser=False,
+                cache_path=".spotify_cache"
+            ))
+        
+        current = sp.current_user_playing_track()
+        if current and current.get('is_playing'):
+            item = current['item']
+            if item:
+                return {
+                    "is_playing": True,
+                    "title": item['name'],
+                    "artist": ", ".join(artist['name'] for artist in item['artists']),
+                    "cover_url": item['album']['images'][0]['url'] if item['album']['images'] else ""
+                }
+    except Exception as e:
+        print(f"Error fetching Spotify data: {e}")
+        # In case of token error, reset sp to force re-auth attempt next time (though Spotipy handles refresh)
+        # sp = None 
+    
+    return {"is_playing": False, "title": "Not Playing", "artist": "", "cover_url": ""}
 
 def calculate_traffic_color(current_time, standard_time):
     if standard_time == 0: return ""
@@ -157,6 +199,9 @@ def update_data():
         
         # 4. Alerts
         current_status["traffic_alerts"] = get_traffic_alerts()
+        
+        # 5. Spotify
+        current_status["spotify"] = get_spotify_data()
         
         current_status["last_updated"] = time.strftime('%H:%M:%S')
         time.sleep(UPDATE_INTERVAL)
@@ -319,6 +364,49 @@ HTML_TEMPLATE = """
         .heavy-traffic { color: #ff3b30 !important; }
         .moderate-traffic { color: #ffcc00 !important; }
 
+        .card.spotify {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+            justify-content: flex-end;
+            align-items: flex-start;
+            text-align: left;
+            padding: 1.5vh;
+        }
+        .card.spotify::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.2));
+            z-index: 1;
+        }
+        .spotify-info {
+            z-index: 2;
+            width: 100%;
+        }
+        .spotify-title {
+            font-size: 2.5vh;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 0.5vh;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .spotify-artist {
+            font-size: 2vh;
+            color: #ccc;
+        }
+        .spotify-icon {
+            position: absolute;
+            top: 1.5vh;
+            right: 1.5vh;
+            font-size: 3vh;
+            color: #1DB954;
+            z-index: 2;
+        }
+
     </style>
     <script>
         function updateClock() {
@@ -364,15 +452,17 @@ HTML_TEMPLATE = """
             <div class="details">{{ data.to_work.distance_km }} km</div>
         </div>
 
-        <!-- Tile 3: Work -> Home -->
-        <div class="card">
-            <h1>Work ➝ Home</h1>
-            <div class="big-value {{ data.to_home.color }}">
-                {{ data.to_home.time_mins }}<span>min</span>
-                {% if data.to_home.trend == 'up' %}<span class="trend up">▲</span>{% endif %}
-                {% if data.to_home.trend == 'down' %}<span class="trend down">▼</span>{% endif %}
+        <!-- Tile 3: Spotify -->
+        <div class="card spotify" {% if data.spotify.is_playing %}style="background-image: url('{{ data.spotify.cover_url }}');"{% endif %}>
+            <div class="spotify-icon">🎵</div>
+            <div class="spotify-info">
+                {% if data.spotify.is_playing %}
+                    <div class="spotify-title">{{ data.spotify.title }}</div>
+                    <div class="spotify-artist">{{ data.spotify.artist }}</div>
+                {% else %}
+                    <div class="spotify-title" style="color: #888;">Not Playing</div>
+                {% endif %}
             </div>
-            <div class="details">{{ data.to_home.distance_km }} km</div>
         </div>
 
         <!-- Tile 4: Traffic Alerts (Ticker) -->
