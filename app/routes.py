@@ -19,6 +19,11 @@ def get_commute_mode(current_time=None):
         return "to_work"
     return "to_home"
 
+@app.route('/api/spotify')
+def spotify_data():
+    """Returns the current Spotify data as JSON."""
+    return data_store.get_spotify_data()
+
 @app.route('/')
 def dashboard():
     """Renders the main dashboard page."""

@@ -19,10 +19,42 @@
             if (dateEl) dateEl.textContent = dateStr;
         }
 
+        function updateSpotify() {
+            fetch('/api/spotify')
+                .then(response => response.json())
+                .then(data => {
+                    const spotifyCard = document.querySelector('.card.spotify');
+                    const iconDiv = spotifyCard.querySelector('.spotify-icon');
+                    const infoDiv = spotifyCard.querySelector('.spotify-info');
+
+                    if (data.is_playing) {
+                        if (data.cover_url) {
+                            spotifyCard.style.backgroundImage = `url('${data.cover_url}')`;
+                        } else {
+                            spotifyCard.style.backgroundImage = 'none';
+                        }
+                        infoDiv.innerHTML = `
+                            <div class="spotify-title">${data.title}</div>
+                            <div class="spotify-artist">${data.artist}</div>
+                        `;
+                    } else {
+                        spotifyCard.style.backgroundImage = 'none';
+                        infoDiv.innerHTML = `
+                            <div class="spotify-title not-playing">${data.title || 'Not Playing'}</div>
+                        `;
+                    }
+                })
+                .catch(err => console.error('Error fetching Spotify data:', err));
+        }
+
         // Run immediately and then every second
         document.addEventListener('DOMContentLoaded', () => {
             updateClock();
             setInterval(updateClock, 1000);
+            
+            // Update Spotify every 5 seconds
+            updateSpotify();
+            setInterval(updateSpotify, 5000);
         });
     </script>
 </head>
