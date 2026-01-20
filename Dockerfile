@@ -30,13 +30,14 @@ RUN pip install --no-cache /wheels/*
 # Copy the application code
 COPY . .
 
+# Fix permissions so the 'app' user can write to the directory (needed for dashboard_data.json)
+RUN chown -R app:app /app && chmod +x start.sh
+
 # Set the non-root user as the current user
 USER app
 
 # Expose the port Gunicorn will run on
 EXPOSE 8000
 
-# Use Gunicorn as the production WSGI server
-# Bind to 0.0.0.0 to allow external connections.
-# Use environment variables to configure workers for flexibility.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "run:app"]
+# Start the scheduler and Gunicorn via the wrapper script
+CMD ["./start.sh"]

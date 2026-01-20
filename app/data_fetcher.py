@@ -1,6 +1,8 @@
 import time
 import logging
 import requests
+import json
+import os
 import xml.etree.ElementTree as ET
 import WazeRouteCalculator
 import spotipy
@@ -10,11 +12,15 @@ from app.config import settings
 # Suppress noisy logging from the WazeRouteCalculator library
 logging.getLogger('WazeRouteCalculator.WazeRouteCalculator').setLevel(logging.WARNING)
 
+DATA_FILE = "dashboard_data.json"
+
 class DataStore:
-    """A thread-safe class to hold and update dashboard data."""
+    """A thread-safe class to hold and update dashboard data using file storage."""
 
     def __init__(self):
-        self.status = {
+        self.sp = None
+        # Default state structure
+        self.default_state = {
             "to_work": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
             "to_home": {"time_mins": 0, "distance_km": 0, "trend": "flat", "color": ""},
             "weather": {"temp": 0, "feels_like": 0, "description": "--", "emoji": ""},
@@ -22,16 +28,29 @@ class DataStore:
             "spotify": {"is_playing": False, "title": "", "artist": "", "cover_url": ""},
             "last_updated": "Initializing..."
         }
-        self.sp = self._init_spotify()
-        self.is_first_run = True
+
+    @property
+    def status(self):
+        """Reads the current status from the JSON file."""
+        if not os.path.exists(DATA_FILE):
+            return self.default_state
+        
+        try:
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return self.default_state
 
     def _init_spotify(self):
         """Initializes the Spotipy client if credentials are provided."""
+        if self.sp:
+            return self.sp
+
         if not settings.get("SPOTIFY_CLIENT_ID") or not settings.get("SPOTIFY_CLIENT_SECRET"):
             print("Spotify credentials not set. Skipping initialization.")
             return None
         try:
-            sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+            self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
                 client_id=settings["SPOTIFY_CLIENT_ID"],
                 client_secret=settings["SPOTIFY_CLIENT_SECRET"],
                 redirect_uri=settings["SPOTIFY_REDIRECT_URI"],
@@ -40,15 +59,19 @@ class DataStore:
                 cache_path=".spotify_cache"
             ))
             # The first call might trigger a token refresh or prompt
-            sp.current_user()
+            self.sp.current_user()
             print("Spotify successfully initialized.")
-            return sp
+            return self.sp
         except Exception as e:
             print(f"Spotify initialization failed. Please check your credentials and authorization. Error: {e}")
             return None
 
     def get_spotify_data(self):
         """Fetches the currently playing track from Spotify."""
+        # Ensure client is initialized
+        if not self.sp:
+            self._init_spotify()
+        
         if not self.sp:
             return {"is_playing": False, "title": "Not Configured", "artist": "", "cover_url": ""}
         try:
@@ -143,35 +166,52 @@ class DataStore:
         """Fetches all data sources and updates the internal status."""
         print(f"[{time.strftime('%H:%M:%S')}] Updating dashboard data...")
 
+        # Get current state for trend comparison
+        current_state = self.status
+        is_first_run = current_state["last_updated"] == "Initializing..."
+
         std_time = settings.get("STANDARD_COMMUTE_MINS", 45)
 
         # Waze Routes
-        old_to_work = self.status["to_work"]["time_mins"]
+        old_to_work = current_state["to_work"]["time_mins"]
         t1, d1 = self.get_waze_route(settings["HOME_ADDRESS"], settings["WORK_ADDRESS"])
-        self.status["to_work"] = {
+        to_work_data = {
             "time_mins": t1, "distance_km": d1,
-            "trend": self.calculate_trend(t1, old_to_work, self.is_first_run),
+            "trend": self.calculate_trend(t1, old_to_work, is_first_run),
             "color": self.calculate_traffic_color(t1, std_time)
         }
 
-        old_to_home = self.status["to_home"]["time_mins"]
+        old_to_home = current_state["to_home"]["time_mins"]
         t2, d2 = self.get_waze_route(settings["WORK_ADDRESS"], settings["HOME_ADDRESS"])
-        self.status["to_home"] = {
+        to_home_data = {
             "time_mins": t2, "distance_km": d2,
-            "trend": self.calculate_trend(t2, old_to_home, self.is_first_run),
+            "trend": self.calculate_trend(t2, old_to_home, is_first_run),
             "color": self.calculate_traffic_color(t2, std_time)
         }
 
         # Weather
         temp, feels, cond, emoji = self.get_weather()
-        self.status["weather"] = {"temp": temp, "feels_like": feels, "description": cond, "emoji": emoji}
+        weather_data = {"temp": temp, "feels_like": feels, "description": cond, "emoji": emoji}
 
         # Alerts & Spotify
-        self.status["traffic_alerts"] = self.get_traffic_alerts()
-        self.status["spotify"] = self.get_spotify_data()
+        alerts_data = self.get_traffic_alerts()
+        spotify_data = self.get_spotify_data()
 
-        self.status["last_updated"] = time.strftime('%H:%M:%S')
-        self.is_first_run = False
+        new_state = {
+            "to_work": to_work_data,
+            "to_home": to_home_data,
+            "weather": weather_data,
+            "traffic_alerts": alerts_data,
+            "spotify": spotify_data,
+            "last_updated": time.strftime('%H:%M:%S')
+        }
+
+        # Atomic write
+        temp_file = DATA_FILE + ".tmp"
+        with open(temp_file, 'w') as f:
+            json.dump(new_state, f)
+        os.replace(temp_file, DATA_FILE)
+        
         print("Update complete.")
 
 # Global instance of the data store

@@ -6,3 +6,5 @@ config.json
 .spotify_cache
 app.log
 *.swp
+dashboard_data.json
+dashboard_data.json.tmp
